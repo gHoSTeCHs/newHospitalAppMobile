@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutterapplication/screens/call_screen.dart';
-import 'package:flutterapplication/screens/chat/chat_list_screen.dart';
-import 'package:flutterapplication/screens/profile.dart';
-import 'package:flutterapplication/screens/recent_screen.dart';
+import 'package:hospital_app/screens/call_screen.dart';
+import 'package:hospital_app/screens/chat/chat_list_screen.dart';
+import 'package:hospital_app/screens/profile.dart';
+import 'package:hospital_app/screens/recent_screen.dart';
+import 'package:hospital_app/widgets/select_user_dialog.dart';
 import '../services/chat_service.dart';
-import 'package:flutterapplication/widgets/select_user_dialog.dart';
 
 // Main home screen with navigation
 class HomeScreen extends StatefulWidget {
