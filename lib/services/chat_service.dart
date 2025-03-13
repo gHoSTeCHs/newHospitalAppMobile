@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class ChatService {
   final String baseUrl = 'http://10.0.2.2:8000/api';
+  // final String baseUrl = 'http://127.0.0.1:8000/api';
   final Dio _dio = Dio(
     BaseOptions(
       baseUrl: 'http://10.0.2.2:8000/api',

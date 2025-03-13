@@ -454,6 +454,21 @@ class _ChatDScreenState extends State<ChatDScreen> {
     }
   }
 
+  Future<void> askPermission() async {
+    final permission = Permission.camera;
+
+    if (await permission.isDenied) {
+      final result = await permission.request();
+      if (result.isGranted) {
+        // Permission is granted
+      } else if (result.isDenied) {
+        // Permission is denied
+      } else if (result.isPermanentlyDenied) {
+        // Permission is permanently denied
+      }
+    }
+  }
+
   Future<void> _sendMessageWithFiles() async {
     if (_selectedFiles.isEmpty) return;
 
@@ -812,7 +827,13 @@ class _ChatDScreenState extends State<ChatDScreen> {
                                 : Colors.grey,
                       ),
                       onPressed: () async {
-                        await _requestPermissions();
+                        var status =
+                            await Permission.manageExternalStorage.request();
+                        if (status.isDenied) {
+                          await Permission.storage.request();
+                        } else if (status.isPermanentlyDenied) {
+                          openAppSettings();
+                        }
                         _isUploadingFile ? null : _pickFile;
                       },
                     ),

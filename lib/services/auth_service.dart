@@ -6,7 +6,7 @@ import '../models/user.dart';
 
 class AuthService {
   // Update with your Laravel API URL
-  // final String baseUrl = 'http://127.0.0.1:8000/api';
+  // final String baseUrl = "http://127.0.0.1:8000";
   final String baseUrl = 'http://10.0.2.2:8000/api';
 
   // Store token in shared preferences
