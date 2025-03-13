@@ -1,12 +1,8 @@
-import 'dart:io';
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
-import 'package:hospital_app/models/message_file.dart';
 import 'package:hospital_app/services/auth_service.dart';
 import 'package:hospital_app/services/message_service.dart';
 import 'package:hospital_app/utils/boxstyling.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'dart:async';
 import '../../models/message.dart';
 import '../../utils/formatters.dart';
@@ -43,10 +39,6 @@ class _ChatDScreenState extends State<ChatDScreen> {
   bool _hasMoreMessages = true;
   Timer? _refreshTimer;
   int? _currentUserId;
-
-  // File handling
-  final List<File> _selectedFiles = [];
-  bool _isUploadingFile = false;
 
   // New state variables for alert and emergency tags
   bool _isAlert = false;
@@ -178,154 +170,8 @@ class _ChatDScreenState extends State<ChatDScreen> {
     }
   }
 
-  Future<void> _pickFile() async {
-    final result = await FilePicker.platform.pickFiles(
-      allowMultiple: true,
-      type: FileType.any,
-    );
-
-    if (result != null && result.files.isNotEmpty) {
-      setState(() {
-        for (var file in result.files) {
-          if (file.path != null) {
-            _selectedFiles.add(File(file.path!));
-          }
-        }
-      });
-
-      // Show the file preview bottom sheet
-      if (_selectedFiles.isNotEmpty) {
-        _showFilePreviewSheet();
-      }
-    }
-  }
-
-  // Show bottom sheet with file previews
-  void _showFilePreviewSheet() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder:
-          (context) => StatefulBuilder(
-            builder: (context, setModalState) {
-              return Container(
-                padding: const EdgeInsets.all(16),
-                height: MediaQuery.of(context).size.height * 0.4,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Selected Files (${_selectedFiles.length})',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.close),
-                          onPressed: () => Navigator.pop(context),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Expanded(
-                      child: ListView.builder(
-                        itemCount: _selectedFiles.length,
-                        itemBuilder: (context, index) {
-                          final file = _selectedFiles[index];
-                          final fileName = file.path.split('/').last;
-                          final fileExt =
-                              fileName.split('.').last.toLowerCase();
-
-                          // Determine file type icon
-                          IconData fileIcon;
-                          if (['jpg', 'jpeg', 'png', 'gif'].contains(fileExt)) {
-                            fileIcon = Icons.image;
-                          } else if (['pdf'].contains(fileExt)) {
-                            fileIcon = Icons.picture_as_pdf;
-                          } else if (['doc', 'docx'].contains(fileExt)) {
-                            fileIcon = Icons.description;
-                          } else if (['xls', 'xlsx'].contains(fileExt)) {
-                            fileIcon = Icons.table_chart;
-                          } else if (['mp3', 'wav', 'm4a'].contains(fileExt)) {
-                            fileIcon = Icons.audio_file;
-                          } else if (['mp4', 'mov', 'avi'].contains(fileExt)) {
-                            fileIcon = Icons.video_file;
-                          } else {
-                            fileIcon = Icons.insert_drive_file;
-                          }
-
-                          return ListTile(
-                            leading: Icon(
-                              fileIcon,
-                              size: 36,
-                              color: Colors.blue,
-                            ),
-                            title: Text(
-                              fileName,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            subtitle: Text(
-                              '${(file.lengthSync() / 1024).toStringAsFixed(1)} KB',
-                            ),
-                            trailing: IconButton(
-                              icon: const Icon(Icons.close, color: Colors.red),
-                              onPressed: () {
-                                setModalState(() {
-                                  _selectedFiles.removeAt(index);
-                                });
-                                setState(() {});
-
-                                if (_selectedFiles.isEmpty) {
-                                  Navigator.pop(context);
-                                }
-                              },
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                        ),
-                        onPressed: () {
-                          Navigator.pop(context);
-                          _sendMessageWithFiles();
-                        },
-                        child: Text(
-                          _isAlert || _isEmergency
-                              ? 'Send ${_isAlert ? "Alert" : ""}${_isAlert && _isEmergency ? " " : ""}${_isEmergency ? "Emergency" : ""} with Files'
-                              : 'Send Files',
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
-    );
-  }
-
   Future<void> _markMessagesAsRead(int messageId) async {
     if (!AppConfig.enableReadReceipts) return;
-
-    // try {
-    //   await _messageService.markAsRead(widget.chatId, messageId);
-    // } catch (e) {
-    //   print('Error marking messages as read: $e');
-    // }
   }
 
   // Toggle alert status
@@ -343,12 +189,7 @@ class _ChatDScreenState extends State<ChatDScreen> {
   }
 
   Future<void> _sendMessage() async {
-    if (_messageController.text.trim().isEmpty && _selectedFiles.isEmpty) {
-      return;
-    }
-
-    if (_selectedFiles.isNotEmpty) {
-      _sendMessageWithFiles();
+    if (_messageController.text.trim().isEmpty) {
       return;
     }
 
@@ -428,151 +269,6 @@ class _ChatDScreenState extends State<ChatDScreen> {
         _messages.removeWhere((m) => m.id == optimisticMessage.id);
       });
       _showErrorSnackbar('Network error. Please try again.');
-    }
-  }
-
-  Future<void> askPermission() async {
-    final permission = Permission.storage;
-
-    if (await permission.isDenied) {
-      final result = await permission.request();
-      if (result.isGranted) {
-        // Permission is granted
-      } else if (result.isDenied) {
-        // Permission is denied
-      } else if (result.isPermanentlyDenied) {
-        // Permission is permanently denied
-      }
-    }
-  }
-
-  Future<void> _sendMessageWithFiles() async {
-    if (_selectedFiles.isEmpty) return;
-
-    // Show loading indicator
-    setState(() {
-      _isUploadingFile = true;
-    });
-
-    final messageText = _messageController.text;
-    _messageController.clear();
-
-    // Reset tags after sending
-    bool wasAlert = _isAlert;
-    bool wasEmergency = _isEmergency;
-
-    setState(() {
-      _isAlert = false;
-      _isEmergency = false;
-    });
-
-    // Create placeholder file objects for UI
-    List<MessageFile> tempFiles =
-        _selectedFiles.map((file) {
-          final fileName = file.path.split('/').last;
-          return MessageFile(
-            id:
-                DateTime.now().millisecondsSinceEpoch +
-                _selectedFiles.indexOf(file),
-            messageId: DateTime.now().millisecondsSinceEpoch,
-            filePath: file.path,
-            fileName: fileName,
-            fileSize: file.lengthSync(),
-            mimeType: _getMimeType(fileName),
-            createdAt: DateTime.now(),
-            updatedAt: DateTime.now(),
-          );
-        }).toList();
-
-    // Optimistically add message to UI
-    final optimisticMessage = Message(
-      id: DateTime.now().millisecondsSinceEpoch, // Temporary ID
-      conversationId: widget.chatId,
-      senderId: _currentUserId ?? 0,
-      content: messageText,
-      createdAt: DateTime.now(),
-      readAt: null,
-      files: tempFiles,
-      messageType: _selectedFiles.length == 1 ? 'file' : 'file',
-      isAlert: wasAlert,
-      isEmergency: wasEmergency,
-      updatedAt: DateTime.now(),
-      status: [],
-    );
-
-    setState(() {
-      _messages.insert(0, optimisticMessage);
-    });
-
-    try {
-      final sentMessage = await _messageService.sendFilesWithMessage(
-        widget.chatId,
-        _selectedFiles.toList(),
-        messageText,
-        wasAlert,
-        wasEmergency,
-      );
-
-      if (sentMessage != null) {
-        setState(() {
-          final index = _messages.indexWhere(
-            (m) => m.id == optimisticMessage.id,
-          );
-
-          if (index != -1) {
-            _messages[index] = sentMessage;
-          } else {
-            _messages.insert(0, sentMessage);
-          }
-
-          _selectedFiles.clear();
-        });
-      } else {
-        setState(() {
-          _messages.removeWhere((m) => m.id == optimisticMessage.id);
-          _showErrorSnackbar('Failed to send files');
-        });
-      }
-    } catch (e) {
-      print('Error sending files: $e');
-
-      setState(() {
-        _messages.removeWhere((m) => m.id == optimisticMessage.id);
-      });
-      _showErrorSnackbar('Network error. Could not upload files.');
-    } finally {
-      setState(() {
-        _isUploadingFile = false;
-      });
-    }
-  }
-
-  // Helper method to guess the MIME type from file name
-  String _getMimeType(String fileName) {
-    final ext = fileName.split('.').last.toLowerCase();
-
-    switch (ext) {
-      case 'jpg':
-      case 'jpeg':
-        return 'image/jpeg';
-      case 'png':
-        return 'image/png';
-      case 'gif':
-        return 'image/gif';
-      case 'pdf':
-        return 'application/pdf';
-      case 'doc':
-      case 'docx':
-        return 'application/msword';
-      case 'xls':
-      case 'xlsx':
-        return 'application/vnd.ms-excel';
-      case 'mp3':
-        return 'audio/mpeg';
-      case 'mp4':
-        return 'video/mp4';
-      default:
-        return 'application/octet-stream';
     }
   }
 
@@ -688,38 +384,6 @@ class _ChatDScreenState extends State<ChatDScreen> {
                     ),
           ),
 
-          // Selected files preview (compact)
-          if (_selectedFiles.isNotEmpty)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              color: Colors.grey.shade100,
-              child: Row(
-                children: [
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: _showFilePreviewSheet,
-                      child: Text(
-                        '${_selectedFiles.length} ${_selectedFiles.length == 1 ? 'file' : 'files'} selected',
-                        style: TextStyle(
-                          color: Colors.blue.shade700,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close, size: 18),
-                    onPressed: () {
-                      setState(() {
-                        _selectedFiles.clear();
-                      });
-                    },
-                  ),
-                ],
-              ),
-            ),
-
           // Message tag controls
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -795,53 +459,17 @@ class _ChatDScreenState extends State<ChatDScreen> {
                   alignment: Alignment.topRight,
                   children: [
                     IconButton(
-                      icon: Icon(
-                        Icons.attach_file,
-                        color:
-                            _selectedFiles.isNotEmpty
-                                ? Colors.blue
-                                : Colors.grey,
-                      ),
-                      onPressed: _isUploadingFile ? null : _pickFile,
+                      icon: Icon(Icons.attach_file, color: Colors.grey),
+                      onPressed: () {},
                     ),
-                    if (_selectedFiles.isNotEmpty)
-                      Container(
-                        padding: const EdgeInsets.all(2),
-                        decoration: BoxDecoration(
-                          color: Colors.red,
-                          shape: BoxShape.circle,
-                        ),
-                        constraints: const BoxConstraints(
-                          minWidth: 16,
-                          minHeight: 16,
-                        ),
-                        child: Text(
-                          '${_selectedFiles.length}',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
                   ],
                 ),
                 // Send button with loading indicator
-                _isUploadingFile
-                    ? const SizedBox(
-                      width: 40,
-                      height: 40,
-                      child: Padding(
-                        padding: EdgeInsets.all(8.0),
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                    )
-                    : FloatingActionButton(
-                      onPressed: _sendMessage,
-                      mini: true,
-                      child: const Icon(Icons.send),
-                    ),
+                FloatingActionButton(
+                  onPressed: _sendMessage,
+                  mini: true,
+                  child: const Icon(Icons.send),
+                ),
               ],
             ),
           ),
