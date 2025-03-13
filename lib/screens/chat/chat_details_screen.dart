@@ -1,6 +1,4 @@
 import 'dart:io';
-
-import 'package:device_info_plus/device_info_plus.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
@@ -433,29 +431,8 @@ class _ChatDScreenState extends State<ChatDScreen> {
     }
   }
 
-  Future<void> _requestPermissions() async {
-    // For Android 13+ (API level 33+)
-    if (Platform.isAndroid) {
-      final androidInfo = await DeviceInfoPlugin().androidInfo;
-      if (androidInfo.version.sdkInt >= 33) {
-        await [
-          Permission.photos,
-          Permission.videos,
-          Permission.audio,
-        ].request();
-      } else {
-        await Permission.storage.request();
-      }
-    }
-
-    // For iOS
-    if (Platform.isIOS) {
-      await Permission.photos.request();
-    }
-  }
-
   Future<void> askPermission() async {
-    final permission = Permission.camera;
+    final permission = Permission.storage;
 
     if (await permission.isDenied) {
       final result = await permission.request();
@@ -528,8 +505,7 @@ class _ChatDScreenState extends State<ChatDScreen> {
     });
 
     try {
-      final sentMessage = await _messageService.pasteMessages(
-        'file',
+      final sentMessage = await _messageService.sendFilesWithMessage(
         widget.chatId,
         _selectedFiles.toList(),
         messageText,
@@ -826,16 +802,7 @@ class _ChatDScreenState extends State<ChatDScreen> {
                                 ? Colors.blue
                                 : Colors.grey,
                       ),
-                      onPressed: () async {
-                        var status =
-                            await Permission.manageExternalStorage.request();
-                        if (status.isDenied) {
-                          await Permission.storage.request();
-                        } else if (status.isPermanentlyDenied) {
-                          openAppSettings();
-                        }
-                        _isUploadingFile ? null : _pickFile;
-                      },
+                      onPressed: _isUploadingFile ? null : _pickFile,
                     ),
                     if (_selectedFiles.isNotEmpty)
                       Container(

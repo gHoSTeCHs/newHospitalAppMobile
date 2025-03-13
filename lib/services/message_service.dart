@@ -123,7 +123,6 @@ class MessageService {
   }
 
   Future sendFilesWithMessage(
-    String type,
     int conversationId,
     List<File> files,
     String content,
@@ -131,22 +130,28 @@ class MessageService {
     bool isEmergency,
   ) async {
     await _setAuthHeaders();
+
     try {
       final response = await _dio.post(
         '/messages/$conversationId',
         data: {
-          'message_type': type,
-          "file": files,
+          'message_type': "file",
           "is_alert": isAlert,
           "is_emergency": isEmergency,
           "content": content,
+          'file': await MultipartFile.fromFile(
+            files[0].path,
+            filename: files[0].path.split('/').last,
+          ),
         },
       );
       if (response.statusCode == 201) {
         return Message.fromJson(response.data['message']);
       }
     } catch (e) {
+      print('Error sending files: $e');
       return e;
     }
+    return null;
   }
 }

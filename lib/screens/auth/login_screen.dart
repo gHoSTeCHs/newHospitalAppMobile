@@ -98,13 +98,13 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ElevatedButton(
                 onPressed: authProvider.isLoading ? null : _submit,
+                style: ElevatedButton.styleFrom(
+                  padding: EdgeInsets.symmetric(vertical: 16),
+                ),
                 child:
                     authProvider.isLoading
                         ? CircularProgressIndicator(color: Colors.white)
                         : Text('LOGIN'),
-                style: ElevatedButton.styleFrom(
-                  padding: EdgeInsets.symmetric(vertical: 16),
-                ),
               ),
               SizedBox(height: 16),
               TextButton(
