@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
-
 import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
 import 'package:hospital_app/models/message.dart';
 import 'package:hospital_app/models/message_response.dart';
 
@@ -62,7 +62,7 @@ class MessageService {
       }
       return null;
     } catch (e) {
-      print('Error sending message: $e');
+      debugPrint('Error sending message: $e');
       return null;
     }
   }
@@ -87,12 +87,12 @@ class MessageService {
         return [];
       }
     } catch (e) {
-      print('Error fetching messages: $e');
+      debugPrint('Error fetching messages: $e');
       return [];
     }
   }
 
-  Future pasteMessages(
+  Future<Message?> pasteMessages(
     String? type,
     int conversationId,
     List<File>? files,
@@ -102,14 +102,16 @@ class MessageService {
   ) async {
     await _setAuthHeaders();
 
+    String finalType = (files == null || files.isEmpty) ? 'text' : 'file';
+
     try {
       final response = await _dio.post(
         '/messages/$conversationId',
         data: {
-          'message_type': type,
-          "is_alert": isAlert,
-          "is_emergency": isEmergency,
-          "content": content,
+          'message_type': finalType,
+          'is_alert': isAlert,
+          'is_emergency': isEmergency,
+          'content': content ?? '',
         },
       );
 
@@ -118,7 +120,8 @@ class MessageService {
       }
       return null;
     } catch (e) {
-      return e;
+      debugPrint("Error sending message: $e");
+      return null;
     }
   }
 
@@ -149,7 +152,7 @@ class MessageService {
         return Message.fromJson(response.data['message']);
       }
     } catch (e) {
-      print('Error sending files: $e');
+      debugPrint('Error sending files: $e');
       return e;
     }
     return null;

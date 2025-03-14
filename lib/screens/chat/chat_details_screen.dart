@@ -1,3 +1,4 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:hospital_app/services/auth_service.dart';
@@ -35,13 +36,17 @@ class _ChatDScreenState extends State<ChatDScreen> {
   bool _isLoading = true;
   bool _showEmojiPicker = false;
   final int _limit = AppConfig.defaultPageSize;
-  int _offset = 0;
+  final int _offset = 0;
   bool _hasMoreMessages = true;
   Timer? _refreshTimer;
   int? _currentUserId;
+  
 
-  // New state variables for alert and emergency tags
-  bool _isAlert = false;
+  // track files
+  List<PlatformFile> _selectedFiles = [];
+
+
+bool _isAlert = false;
   bool _isEmergency = false;
 
   @override
@@ -60,7 +65,23 @@ class _ChatDScreenState extends State<ChatDScreen> {
     }
   }
 
-  // Get current user ID (for determining message ownership)
+  Future<void> _pickFiles() async {
+    try {
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        allowMultiple: true,
+      );
+
+      if (result != null) {
+        setState(() {
+          _selectedFiles = result.files;
+        });
+      }
+    } catch (e) {
+      debugPrint("Error picking files: $e");
+      _showErrorSnackbar('Failed to select files');
+    }
+  }
+
   Future<void> _getCurrentUserId() async {
     // final prefs = await SharedPreferences.getInstance();
     final user = await AuthService().getCurrentUser();
@@ -70,9 +91,7 @@ class _ChatDScreenState extends State<ChatDScreen> {
   void _scrollListener() {
     if (_scrollController.position.pixels ==
             _scrollController.position.maxScrollExtent &&
-        _hasMoreMessages) {
-      _loadMoreMessages();
-    }
+        _hasMoreMessages) {}
   }
 
   Future<void> _fetchMessages() async {
@@ -92,13 +111,8 @@ class _ChatDScreenState extends State<ChatDScreen> {
         _isLoading = false;
         _hasMoreMessages = messages.length == _limit;
       });
-
-      // Mark messages as read if we have any messages
-      if (messages.isNotEmpty) {
-        _markMessagesAsRead(messages.first.id);
-      }
     } catch (e) {
-      print('Error fetching messages: $e');
+      debugPrint('Error fetching messages: $e');
       setState(() {
         _isLoading = false;
       });
@@ -107,19 +121,15 @@ class _ChatDScreenState extends State<ChatDScreen> {
     }
   }
 
-  // Refresh only new messages
   Future<void> _refreshMessages() async {
     if (_messages.isEmpty) return;
 
     try {
-      // Get messages newer than our newest message
       final latestMessages = await _messageService.gM(
         widget.chatId,
         limit: 10,
         offset: 0,
       );
-
-      // Filter out messages we already have
       final newMessages =
           latestMessages
               .where((msg) => !_messages.any((m) => m.id == msg.id))
@@ -129,49 +139,10 @@ class _ChatDScreenState extends State<ChatDScreen> {
         setState(() {
           _messages = [...newMessages, ..._messages];
         });
-
-        // Mark as read
-        if (newMessages.isNotEmpty) {
-          _markMessagesAsRead(newMessages.first.id);
-        }
       }
     } catch (e) {
-      print('Error refreshing messages: $e');
+      debugPrint('Error refreshing messages: $e');
     }
-  }
-
-  Future<void> _loadMoreMessages() async {
-    if (_isLoading) return;
-
-    setState(() {
-      _offset += _limit;
-      _isLoading = true;
-    });
-
-    try {
-      final messages = await _messageService.gM(
-        widget.chatId,
-        limit: _limit,
-        offset: _offset,
-      );
-
-      setState(() {
-        _messages = [..._messages, ...messages];
-        _isLoading = false;
-        _hasMoreMessages = messages.length == _limit;
-      });
-    } catch (e) {
-      print('Error loading more messages: $e');
-      setState(() {
-        _isLoading = false;
-      });
-
-      _showErrorSnackbar('Failed to load more messages');
-    }
-  }
-
-  Future<void> _markMessagesAsRead(int messageId) async {
-    if (!AppConfig.enableReadReceipts) return;
   }
 
   // Toggle alert status
@@ -189,9 +160,14 @@ class _ChatDScreenState extends State<ChatDScreen> {
   }
 
   Future<void> _sendMessage() async {
-    if (_messageController.text.trim().isEmpty) {
+    if (_messageController.text.trim().isEmpty && _selectedFiles.isEmpty) {
       return;
     }
+
+    // if (_selectedFiles.isNotEmpty) {
+    //   _sendMessageWithFiles();
+    //   return;
+    // }
 
     final messageText = _messageController.text;
     _messageController.clear();
@@ -435,40 +411,38 @@ class _ChatDScreenState extends State<ChatDScreen> {
                 ),
               ],
             ),
-            child: Row(
+            child: Column(
               children: [
-                IconButton(
-                  icon: const Icon(
-                    Icons.emoji_emotions_outlined,
-                    color: Colors.grey,
-                  ),
-                  onPressed: _toggleEmojiPicker,
-                ),
-                Expanded(
-                  child: TextField(
-                    controller: _messageController,
-                    decoration: const InputDecoration(
-                      hintText: "Write a message...",
-                      border: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(horizontal: 8),
-                    ),
-                  ),
-                ),
-                // File attachment button with count indicator
-                Stack(
-                  alignment: Alignment.topRight,
+                _buildFilePreview(),
+                Row(
                   children: [
                     IconButton(
-                      icon: Icon(Icons.attach_file, color: Colors.grey),
-                      onPressed: () {},
+                      icon: const Icon(
+                        Icons.emoji_emotions_outlined,
+                        color: Colors.grey,
+                      ),
+                      onPressed: _toggleEmojiPicker,
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.attach_file, color: Colors.grey),
+                      onPressed: _pickFiles,
+                    ),
+                    Expanded(
+                      child: TextField(
+                        controller: _messageController,
+                        decoration: const InputDecoration(
+                          hintText: "Write a message...",
+                          border: InputBorder.none,
+                          contentPadding: EdgeInsets.symmetric(horizontal: 8),
+                        ),
+                      ),
+                    ),
+                    FloatingActionButton(
+                      onPressed: _sendMessage,
+                      mini: true,
+                      child: const Icon(Icons.send),
                     ),
                   ],
-                ),
-                // Send button with loading indicator
-                FloatingActionButton(
-                  onPressed: _sendMessage,
-                  mini: true,
-                  child: const Icon(Icons.send),
                 ),
               ],
             ),
@@ -484,6 +458,55 @@ class _ChatDScreenState extends State<ChatDScreen> {
               ),
             ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildFilePreview() {
+    if (_selectedFiles.isEmpty) return SizedBox.shrink();
+
+    return SizedBox(
+      height: 80,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: _selectedFiles.length,
+        itemBuilder: (context, index) {
+          final file = _selectedFiles[index];
+
+          return Stack(
+            children: [
+              Container(
+                width: 80,
+                height: 80,
+                margin: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.grey[200],
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Center(
+                  child: Text(
+                    file.name.length > 10
+                        ? '${file.name.substring(0, 10)}...'
+                        : file.name,
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+              Positioned(
+                right: 0,
+                top: 0,
+                child: IconButton(
+                  icon: Icon(Icons.cancel, color: Colors.red, size: 18),
+                  onPressed: () {
+                    setState(() {
+                      _selectedFiles.removeAt(index);
+                    });
+                  },
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
