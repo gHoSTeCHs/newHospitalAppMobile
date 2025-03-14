@@ -40,13 +40,10 @@ class _ChatDScreenState extends State<ChatDScreen> {
   bool _hasMoreMessages = true;
   Timer? _refreshTimer;
   int? _currentUserId;
-  
 
-  // track files
   List<PlatformFile> _selectedFiles = [];
 
-
-bool _isAlert = false;
+  bool _isAlert = false;
   bool _isEmergency = false;
 
   @override
@@ -83,7 +80,6 @@ bool _isAlert = false;
   }
 
   Future<void> _getCurrentUserId() async {
-    // final prefs = await SharedPreferences.getInstance();
     final user = await AuthService().getCurrentUser();
     _currentUserId = user!.id;
   }
@@ -145,14 +141,12 @@ bool _isAlert = false;
     }
   }
 
-  // Toggle alert status
   void _toggleAlert() {
     setState(() {
       _isAlert = !_isAlert;
     });
   }
 
-  // Toggle emergency status
   void _toggleEmergency() {
     setState(() {
       _isEmergency = !_isEmergency;
@@ -172,7 +166,6 @@ bool _isAlert = false;
     final messageText = _messageController.text;
     _messageController.clear();
 
-    // Reset tags after sending
     bool wasAlert = _isAlert;
     bool wasEmergency = _isEmergency;
 
@@ -181,9 +174,8 @@ bool _isAlert = false;
       _isEmergency = false;
     });
 
-    // Optimistically add message to UI
     final optimisticMessage = Message(
-      id: DateTime.now().millisecondsSinceEpoch, // Temporary ID
+      id: DateTime.now().millisecondsSinceEpoch,
       conversationId: widget.chatId,
       senderId: _currentUserId ?? 0,
       content: messageText,
@@ -212,7 +204,6 @@ bool _isAlert = false;
       );
 
       if (sentMessage != null) {
-        // Replace optimistic message with the actual one
         setState(() {
           final index = _messages.indexWhere(
             (m) =>
@@ -227,12 +218,10 @@ bool _isAlert = false;
           if (index != -1) {
             _messages[index] = sentMessage;
           } else {
-            // If we couldn't find the optimistic message, just add the new one
             _messages.insert(0, sentMessage);
           }
         });
       } else {
-        // Handle error - remove optimistic message
         setState(() {
           _messages.removeWhere((m) => m.id == optimisticMessage.id);
         });
@@ -240,7 +229,6 @@ bool _isAlert = false;
       }
     } catch (e) {
       print('Error sending message: $e');
-      // Handle error - remove optimistic message
       setState(() {
         _messages.removeWhere((m) => m.id == optimisticMessage.id);
       });
@@ -735,9 +723,9 @@ bool _isAlert = false;
                     ),
 
                   // Message text
-                  if (message.content.isNotEmpty)
+                  if ((message.content ?? '').isNotEmpty)
                     Text(
-                      message.content,
+                      message.content ?? '',
                       style: TextStyle(
                         fontSize: 15,
                         color: isMe ? Colors.white : Colors.black87,

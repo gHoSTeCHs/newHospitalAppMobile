@@ -7,7 +7,7 @@ class Message {
   final dynamic conversationId;
   final int senderId;
   final String messageType;
-  final String content;
+  final String? content;
   final bool isAlert;
   final bool isEmergency;
   final DateTime? readAt;

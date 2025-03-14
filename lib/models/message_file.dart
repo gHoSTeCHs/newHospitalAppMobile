@@ -4,7 +4,7 @@ class MessageFile {
   final String filePath;
   final String fileName;
   final int fileSize;
-  final String mimeType;
+  final dynamic mimeType;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -27,7 +27,7 @@ class MessageFile {
       filePath: json['file_path'],
       fileName: json['file_name'],
       fileSize: json['file_size'],
-      mimeType: json['mime_type'],
+      mimeType: json['file_type'],
       createdAt: DateTime.parse(json['created_at']),
       updatedAt: DateTime.parse(json['updated_at']),
     );
