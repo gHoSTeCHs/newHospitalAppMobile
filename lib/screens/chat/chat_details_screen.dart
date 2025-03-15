@@ -1,9 +1,11 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
+import 'package:hospital_app/models/message_file.dart';
 import 'package:hospital_app/services/auth_service.dart';
 import 'package:hospital_app/services/message_service.dart';
 import 'package:hospital_app/utils/boxstyling.dart';
+import 'package:hospital_app/utils/file_methods.dart';
 import 'dart:async';
 import '../../models/message.dart';
 import '../../utils/formatters.dart';
@@ -72,6 +74,8 @@ class _ChatDScreenState extends State<ChatDScreen> {
         setState(() {
           _selectedFiles = result.files;
         });
+
+        debugPrint('You just selected a file');
       }
     } catch (e) {
       debugPrint("Error picking files: $e");
@@ -96,7 +100,7 @@ class _ChatDScreenState extends State<ChatDScreen> {
     });
 
     try {
-      final messages = await _messageService.gM(
+      final messages = await _messageService.getMessages(
         widget.chatId,
         limit: _limit,
         offset: _offset,
@@ -121,7 +125,7 @@ class _ChatDScreenState extends State<ChatDScreen> {
     if (_messages.isEmpty) return;
 
     try {
-      final latestMessages = await _messageService.gM(
+      final latestMessages = await _messageService.getMessages(
         widget.chatId,
         limit: 10,
         offset: 0,
@@ -153,15 +157,101 @@ class _ChatDScreenState extends State<ChatDScreen> {
     });
   }
 
+  Future<void> _sendMessageWithFiles() async {
+    final messageText = _messageController.text;
+    _messageController.clear();
+
+    // Reset tags after sending
+    bool wasAlert = _isAlert;
+    bool wasEmergency = _isEmergency;
+
+    setState(() {
+      _isAlert = false;
+      _isEmergency = false;
+    });
+
+    List<MessageFile> tempFiles =
+        _selectedFiles.map((file) {
+          final fileName = file.path?.split('/').last;
+          return MessageFile(
+            id:
+                DateTime.now().millisecondsSinceEpoch +
+                _selectedFiles.indexOf(file),
+            messageId: DateTime.now().millisecondsSinceEpoch,
+            filePath: file.path,
+            fileName: fileName,
+            fileSize: file.size,
+            mimeType: FileMethods.getMimeType(fileName),
+            createdAt: DateTime.now(),
+            updatedAt: DateTime.now(),
+          );
+        }).toList();
+
+    final optimisticMessage = Message(
+      id: DateTime.now().millisecondsSinceEpoch, // Temporary ID
+      conversationId: widget.chatId,
+      senderId: _currentUserId ?? 0,
+      content: messageText,
+      createdAt: DateTime.now(),
+      readAt: null,
+      files: tempFiles,
+      messageType: _selectedFiles.length == 1 ? 'file' : 'file',
+      isAlert: wasAlert,
+      isEmergency: wasEmergency,
+      updatedAt: DateTime.now(),
+      status: [],
+    );
+
+    setState(() {
+      _messages.insert(0, optimisticMessage);
+    });
+
+    try {
+      final sentMessage = await _messageService.sendfile(
+        _selectedFiles,
+        widget.chatId,
+        wasAlert,
+        wasEmergency,
+      );
+      if (sentMessage != null) {
+        setState(() {
+          final index = _messages.indexWhere(
+            (m) => m.id == optimisticMessage.id,
+          );
+
+          if (index != -1) {
+            _messages[index] = sentMessage;
+          } else {
+            _messages.insert(0, sentMessage);
+          }
+
+          _selectedFiles.clear();
+        });
+      } else {
+        setState(() {
+          _messages.removeWhere((m) => m.id == optimisticMessage.id);
+          _showErrorSnackbar('Failed to send files');
+        });
+      }
+    } catch (e) {
+      debugPrint("Error sending file $e");
+
+      setState(() {
+        _messages.removeWhere((m) => m.id == optimisticMessage.id);
+      });
+      _showErrorSnackbar('Network error. Could not upload files.');
+    }
+  }
+
   Future<void> _sendMessage() async {
     if (_messageController.text.trim().isEmpty && _selectedFiles.isEmpty) {
       return;
     }
 
-    // if (_selectedFiles.isNotEmpty) {
-    //   _sendMessageWithFiles();
-    //   return;
-    // }
+    if (_selectedFiles.isNotEmpty) {
+      _sendMessageWithFiles();
+      return;
+    }
 
     final messageText = _messageController.text;
     _messageController.clear();
@@ -228,7 +318,7 @@ class _ChatDScreenState extends State<ChatDScreen> {
         _showErrorSnackbar('Failed to send message');
       }
     } catch (e) {
-      print('Error sending message: $e');
+      debugPrint('Error sending message: $e');
       setState(() {
         _messages.removeWhere((m) => m.id == optimisticMessage.id);
       });
@@ -696,7 +786,7 @@ class _ChatDScreenState extends State<ChatDScreen> {
                                           CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          file.fileName,
+                                          file.fileName ?? 'Unknown File',
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                           style: const TextStyle(

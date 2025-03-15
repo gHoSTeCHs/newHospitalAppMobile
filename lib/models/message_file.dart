@@ -1,8 +1,8 @@
 class MessageFile {
   final int id;
   final int messageId;
-  final String filePath;
-  final String fileName;
+  final String? filePath;
+  final String? fileName;
   final int fileSize;
   final dynamic mimeType;
   final DateTime createdAt;

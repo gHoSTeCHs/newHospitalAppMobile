@@ -79,6 +79,38 @@ class Message {
     };
   }
 
+  Message copyWith({
+    int? id,
+    dynamic conversationId,
+    int? senderId,
+    String? messageType,
+    String? content,
+    bool? isAlert,
+    bool? isEmergency,
+    DateTime? readAt,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    User? sender,
+    List<MessageFile>? files,
+    List<MessageStatus>? status,
+  }) {
+    return Message(
+      id: id ?? this.id,
+      conversationId: conversationId ?? this.conversationId,
+      senderId: senderId ?? this.senderId,
+      messageType: messageType ?? this.messageType,
+      content: content ?? this.content,
+      isAlert: isAlert ?? this.isAlert,
+      isEmergency: isEmergency ?? this.isEmergency,
+      readAt: readAt ?? this.readAt,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      sender: sender ?? this.sender,
+      files: files ?? this.files,
+      status: status ?? this.status,
+    );
+  }
+
   // Check if the message is from the current user
   bool isFromCurrentUser(int currentUserId) {
     return senderId == currentUserId;
